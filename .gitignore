@@ -99,3 +99,22 @@ firestore-debug.*.log
 *.bak
 *.swp
 *.swo
+
+# General ignores
+node_modules/
+dist/
+build/
+
+# Ignore functions directory specific files
+functions/node_modules/
+functions/lib/
+functions/dist/
+functions/.firebase/
+functions/*.cache
+functions/npm-debug.log*
+functions/yarn-debug.log*
+functions/package-lock.json
+functions/yarn.lock
+
+# Ignore Firebase emulation data (if using emulators)
+firebase-debug.log
