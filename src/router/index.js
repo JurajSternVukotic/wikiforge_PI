@@ -1,11 +1,17 @@
 import { createRouter, createWebHistory } from "vue-router";
 import landing_page from "@/components/landing_page.vue";
+import register from "@/components/register.vue";
 
 const routes = [
   {
     path: "/",
     name: "home",
     component: landing_page,
+  },
+  {
+    path: "/register",
+    name: "Register",
+    component: register,
   },
   {
     path: "/about",

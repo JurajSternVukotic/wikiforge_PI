@@ -39,16 +39,25 @@
 </template>
 
 <script>
+import { authService } from '@/services/auth.service'
+
 export default {
-  name: "LandingPage",
+  name: 'LandingPage',
   data() {
     return {
       isLoggedIn: false,
-      username: "",
-      activeTab: "news",
-    };
+      username: '',
+      activeTab: 'news',
+    }
   },
-};
+  async created() {
+    const user = await authService.getCurrentUser()
+    if (user) {
+      this.isLoggedIn = true
+      this.username = user.displayName
+    }
+  },
+}
 </script>
 
 <style scoped></style>
