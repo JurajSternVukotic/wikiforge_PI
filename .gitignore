@@ -57,10 +57,13 @@ pnpm-debug.log*
 .cache/
 .npm/
 
-# Compiled JavaScript and TypeScript files
-*.js
-*.js.map
-*.d.ts
+# Compiled JavaScript files (but not source files)
+dist/**/*.js
+build/**/*.js
+lib/**/*.js
+
+# Keep source JS files
+!src/**/*.js
 
 # TypeScript v1 declaration files
 typings/
@@ -75,3 +78,4 @@ typings/
 # Lock files (optional, comment out if you want to track these)
 # package-lock.json
 # yarn.lock
+functions/__pycache__/main.cpython-312.pyc

@@ -14,7 +14,7 @@ import {gemini15Flash} from "@genkit-ai/googleai";
 // Cloud Functions.
 import {firebaseAuth} from "@genkit-ai/firebase/auth";
 import {onFlow} from "@genkit-ai/firebase/functions";
- 
+
 configureGenkit({
   plugins: [
     // Load the Firebase plugin, which provides integrations with several
@@ -54,7 +54,7 @@ export const menuSuggestionFlow = onFlow(
     }),
   },
   async (subject) => {
-		// Construct a request and send it to the model API.
+    // Construct a request and send it to the model API.
     const prompt =
       `Suggest an item for the menu of a ${subject} themed restaurant`;
     const llmResponse = await generate({
@@ -65,10 +65,10 @@ export const menuSuggestionFlow = onFlow(
       },
     });
 
-		// Handle the response from the model API. In this sample, we just
-		// convert it to a string, but more complicated flows might coerce the
-		// response into structured output or chain the response into another
-		// LLM call, etc.
+    // Handle the response from the model API. In this sample, we just
+    // convert it to a string, but more complicated flows might coerce the
+    // response into structured output or chain the response into another
+    // LLM call, etc.
     return llmResponse.text();
   }
 );
