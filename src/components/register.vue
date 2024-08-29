@@ -31,41 +31,52 @@
 </template>
 
 <script>
-import { authService } from "@/services/auth.service";
+import { authService } from '@/services/auth.service'
 
 export default {
-  name: "Register",
+  name: 'Register',
   data() {
     return {
-      username: "",
-      email: "",
-      password: "",
-      repeatPassword: "",
-    };
+      username: '',
+      email: '',
+      password: '',
+      repeatPassword: '',
+    }
   },
   methods: {
     async handleSubmit() {
-      if (this.password !== this.repeatPassword) {
-        alert("Passwords don't match");
-        return;
-      }
       try {
-        await authService.register(this.email, this.password, this.username);
-        this.$router.push("/");
+        console.log(
+          'Register attempt',
+          this.email,
+          this.password,
+          this.username
+        )
+        await authService.register(this.email, this.password, this.username)
+        console.log('Registration successful')
+        this.$router.push('/')
       } catch (error) {
-        console.error("Registration error:", error);
-        // Handle error (show message to user)
+        console.error('Registration error:', error.code, error.message)
+        // Display a user-friendly error message
+        let errorMessage = 'Registration failed. Please try again.'
+        if (error.code === 'auth/email-already-in-use') {
+          errorMessage = 'This email is already in use. Please try another one.'
+        } else if (error.code === 'auth/weak-password') {
+          errorMessage =
+            'Password is too weak. Please choose a stronger password.'
+        }
+        alert(errorMessage)
       }
     },
     async handleGoogleRegister() {
       try {
-        await authService.loginWithGoogle();
-        this.$router.push("/");
+        await authService.loginWithGoogle()
+        this.$router.push('/')
       } catch (error) {
-        console.error("Google registration error:", error);
+        console.error('Google registration error:', error)
         // Handle error (show message to user)
       }
     },
   },
-};
+}
 </script>

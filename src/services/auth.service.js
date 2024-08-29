@@ -1,31 +1,49 @@
-import { auth, db } from '@/firebase'
+import { auth, db, googleProvider } from '@/firebase'
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
   signInWithPopup,
-  GoogleAuthProvider,
 } from 'firebase/auth'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, getDoc } from 'firebase/firestore'
 
 export const authService = {
-  async login(usernameOrEmail, password) {
-    // You might need to check if it's a username or email and handle accordingly
-    return signInWithEmailAndPassword(auth, usernameOrEmail, password)
-  },
-  async register(email, password, username) {
-    const userCredential = await createUserWithEmailAndPassword(
+  async login(email, password) {
+    const userCredential = await signInWithEmailAndPassword(
       auth,
       email,
       password
     )
-    // Store additional user info in Firestore
-    await setDoc(doc(db, 'users', userCredential.user.uid), {
-      username: username,
-      email: email,
-    })
-    return userCredential
+    return userCredential.user
+  },
+  async register(email, password, username) {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      )
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        username,
+        email,
+      })
+      return userCredential.user
+    } catch (error) {
+      console.error('Detailed registration error:', error.code, error.message)
+      throw error
+    }
+  },
+  async loginWithGoogle() {
+    const result = await signInWithPopup(auth, googleProvider)
+    const user = result.user
+    const userDoc = await getDoc(doc(db, 'users', user.uid))
+    if (!userDoc.exists()) {
+      await setDoc(doc(db, 'users', user.uid), {
+        username: user.displayName || user.email.split('@')[0],
+        email: user.email,
+      })
+    }
+    return user
   },
 
   logout() {
@@ -34,28 +52,10 @@ export const authService = {
 
   getCurrentUser() {
     return new Promise((resolve, reject) => {
-      const unsubscribe = onAuthStateChanged(
-        auth,
-        (user) => {
-          unsubscribe()
-          resolve(user)
-        },
-        reject
-      )
+      const unsubscribe = auth.onAuthStateChanged((user) => {
+        unsubscribe()
+        resolve(user)
+      }, reject)
     })
-  },
-
-  async loginWithGoogle() {
-    const provider = new GoogleAuthProvider()
-    const result = await signInWithPopup(auth, provider)
-    // Check if it's a new user and store additional info if needed
-    const isNewUser = result.additionalUserInfo.isNewUser
-    if (isNewUser) {
-      await setDoc(doc(db, 'users', result.user.uid), {
-        username: result.user.displayName,
-        email: result.user.email,
-      })
-    }
-    return result
   },
 }
