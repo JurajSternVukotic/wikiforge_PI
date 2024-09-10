@@ -7,6 +7,7 @@ import SocialPage from "./components/Social.vue";
 import BookmarksPage from "./components/Bookmarks.vue";
 import SupportPage from "./components/Support.vue";
 import ProfilePage from "./components/Profile.vue";
+import LoginPage from "./components/Login.vue";
 
 const routes = [
   {
@@ -33,6 +34,16 @@ const routes = [
     path: "/support",
     name: "Support",
     component: SupportPage,
+  },
+  {
+    path: "/profile",
+    name: "Profile",
+    component: ProfilePage,
+  },
+  {
+    path: "/login",
+    name: "Login",
+    component: LoginPage,
   },
   {
     path: "/profile",
