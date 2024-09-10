@@ -8,6 +8,7 @@ import BookmarksPage from "./components/Bookmarks.vue";
 import SupportPage from "./components/Support.vue";
 import ProfilePage from "./components/Profile.vue";
 import LoginPage from "./components/Login.vue";
+import VerifyEmail from "./components/VerifyEmail.vue";
 
 const routes = [
   {
@@ -49,6 +50,11 @@ const routes = [
     path: "/profile",
     name: "Profile",
     component: ProfilePage,
+  },
+  {
+    path: "/verify-email",
+    name: "VerifyEmail",
+    component: VerifyEmail,
   },
 ];
 

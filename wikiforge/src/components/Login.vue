@@ -44,6 +44,7 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  sendEmailVerification,
 } from "firebase/auth";
 
 export default {
@@ -66,7 +67,12 @@ export default {
     loginWithEmail() {
       this.errorMessage = ""; // Clear any previous error message
       signInWithEmailAndPassword(auth, this.email, this.password)
-        .then(() => {
+        .then((userCredential) => {
+          const user = userCredential.user;
+          if (!user.emailVerified) {
+            this.errorMessage = "Please verify your email before logging in.";
+            return;
+          }
           this.$router.push("/profile");
         })
         .catch((error) => {
@@ -83,6 +89,16 @@ export default {
         .then((userCredential) => {
           const user = userCredential.user;
           console.log(user);
+          sendEmailVerification(user)
+            .then(() => {
+              this.errorMessage =
+                "Verification email sent! Please check your inbox.";
+            })
+            .catch((verificationError) => {
+              console.log(verificationError);
+              this.errorMessage = "Failed to send verification email.";
+            });
+
           this.$router.push("/profile");
         })
         .catch((error) => {
