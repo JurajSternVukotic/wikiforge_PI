@@ -10,8 +10,6 @@
 
 <script>
 import Navbar from "./components/Navbar.vue";
-import LoginPage from "./components/LoginPage.vue";
-import HomePage from "./components/HomePage.vue";
 
 export default {
   components: {
@@ -20,4 +18,8 @@ export default {
 };
 </script>
 
-<style></style>
+<style>
+body {
+  margin: 0;
+}
+</style>

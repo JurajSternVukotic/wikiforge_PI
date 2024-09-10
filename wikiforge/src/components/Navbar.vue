@@ -1,92 +1,172 @@
 <template>
   <nav class="navbar">
-    <div class="navbar-content">
-      <!-- Logo with a home link -->
-      <div class="logo">
+    <!-- Left Menu -->
+    <ul class="navbar-menu">
+      <li class="menu-item">
         <router-link to="/">
-          <img src="path-to-logo" alt="Wikiforge Logo" />
+          <font-awesome-icon :icon="['fas', 'home']" /> Home
         </router-link>
-      </div>
-
-      <!-- Navigation items with icons -->
-      <div class="nav-items">
-        <router-link v-for="item in navItems" :key="item.name" :to="item.link">
-          <img :src="item.icon" :alt="item.name" />
+      </li>
+      <li class="menu-item">
+        <router-link to="/wikis">
+          <font-awesome-icon :icon="['fas', 'book']" /> Wikis
         </router-link>
-      </div>
+      </li>
+      <li class="menu-item">
+        <router-link to="/social">
+          <font-awesome-icon :icon="['fas', 'users']" /> Social
+        </router-link>
+      </li>
+      <li class="menu-item">
+        <router-link to="/bookmarks">
+          <font-awesome-icon :icon="['fas', 'bookmark']" /> Bookmarks
+        </router-link>
+      </li>
+    </ul>
 
-      <!-- Right side with login/status and language select -->
-      <div class="user-settings">
-        <div v-if="!isLoggedIn">
-          <router-link to="/login">LOG IN</router-link>
-        </div>
-        <div v-else>Welcome, {{ user.name }}!</div>
-
-        <!-- Language and theme icons -->
-        <img
-          src="path-to-croatian-flag"
-          alt="Language Toggle"
-          @click="toggleLanguage"
-        />
-        <img src="path-to-theme-icon" alt="Theme Toggle" @click="toggleTheme" />
-      </div>
+    <!-- Center Brand -->
+    <div class="navbar-brand">
+      <router-link to="/">
+        <h1>Wikiforge</h1>
+        <p>Your custom wiki creator</p>
+      </router-link>
     </div>
+
+    <!-- Right Menu -->
+    <ul class="navbar-menu right">
+      <li class="menu-item">
+        <router-link to="/support">
+          <font-awesome-icon :icon="['fas', 'life-ring']" /> Support
+        </router-link>
+      </li>
+      <li class="menu-item">
+        <router-link to="/profile">
+          <font-awesome-icon :icon="['fas', 'user']" /> Profile
+        </router-link>
+      </li>
+    </ul>
   </nav>
 </template>
 
 <script>
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import { library } from "@fortawesome/fontawesome-svg-core";
+import {
+  faHome,
+  faBook,
+  faUsers,
+  faBookmark,
+  faLifeRing,
+  faUser,
+} from "@fortawesome/free-solid-svg-icons";
+
+// Add icons to the library
+library.add(faHome, faBook, faUsers, faBookmark, faLifeRing, faUser);
+
 export default {
-  data() {
-    return {
-      isLoggedIn: false, // You can fetch this from Firebase Auth later
-      user: {}, // User details from Firebase
-      navItems: [
-        { name: "Option 1", link: "/option1", icon: "path-to-icon1" },
-        { name: "Option 2", link: "/option2", icon: "path-to-icon2" },
-        // Add more options as needed
-      ],
-    };
-  },
-  methods: {
-    toggleLanguage() {
-      // Functionality to toggle between languages
-    },
-    toggleTheme() {
-      // Functionality to toggle between dark/light theme
-    },
+  name: "NavBar",
+  components: {
+    FontAwesomeIcon,
   },
 };
 </script>
 
 <style scoped>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  background-color: #f8f8f8;
+  background-color: #333;
+  padding: 10px;
+  position: relative;
+  overflow: hidden;
 }
 
-.navbar-content {
+.navbar-menu {
+  list-style: none;
   display: flex;
   align-items: center;
 }
 
-.logo img {
-  height: 50px;
+.menu-item {
+  margin: 0 15px;
+  position: relative;
 }
 
-.nav-items img {
-  height: 30px;
-  margin: 0 10px;
+.menu-item router-link {
+  color: white;
+  text-decoration: none;
+  font-size: 16px;
+  padding: 10px;
+  position: relative;
+  display: block;
+  transition: all 0.3s ease;
 }
 
-.user-settings img {
-  height: 30px;
-  cursor: pointer;
+.menu-item router-link:hover {
+  background-color: #555;
 }
 
-.user-settings a {
-  margin-right: 10px;
+.menu-item::before,
+.menu-item::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 100%;
+  background-color: #333;
+  top: 0;
+  z-index: -1;
+  transform: skewX(45deg);
+}
+
+.menu-item::before {
+  left: -20px;
+}
+
+.menu-item::after {
+  right: -20px;
+}
+
+.navbar-brand {
+  text-align: center;
+}
+
+.navbar-brand h1 {
+  color: white;
+  font-size: 24px;
+}
+
+.navbar-brand p {
+  color: #ccc;
+  font-size: 12px;
+}
+
+.right {
+  display: flex;
+}
+
+.right .menu-item {
+  margin-left: 15px;
+}
+
+.menu-item a,
+.menu-item navbar-brand {
+  color: white;
+  text-decoration: none;
+  font-size: 16px;
+  padding: 10px;
+  position: relative;
+  display: block;
+  transition: all 0.3s ease;
+}
+
+.menu-item a i {
+  margin-right: 8px;
 }
 </style>
