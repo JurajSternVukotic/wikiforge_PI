@@ -164,17 +164,34 @@ export default {
         // Update display name in Firestore
         const db = getFirestore();
         const userDoc = doc(db, "users", auth.currentUser.uid);
-        await setDoc(
-          userDoc,
-          {
-            displayName: this.newDisplayName,
-          },
-          { merge: true }
-        ); // Use { merge: true } to avoid overwriting other fields
+        const userSnapshot = await getDoc(userDoc);
+
+        // Initialize missing fields if necessary
+        let userData = userSnapshot.exists() ? userSnapshot.data() : {};
+        let updates = {
+          displayName: this.newDisplayName,
+        };
+
+        if (!userData.biography) {
+          updates.biography = ""; // Initialize empty biography if missing
+        }
+        if (!userData.interests) {
+          updates.interests = ""; // Initialize empty interests if missing
+        }
+        if (!userData.friends) {
+          updates.friends = []; // Initialize empty friends array if missing
+        }
+        if (!userData.friendRequests) {
+          updates.friendRequests = []; // Initialize empty friendRequests array if missing
+        }
+
+        // Save the updates to Firestore with { merge: true } to avoid overwriting other fields
+        await setDoc(userDoc, updates, { merge: true });
 
         this.displayName = this.newDisplayName;
         this.newDisplayName = "";
-        this.successMessage = "Display name updated successfully!";
+        this.successMessage =
+          "Display name updated and missing fields initialized successfully!";
       } catch (error) {
         this.errorMessage = "Failed to change display name.";
       }

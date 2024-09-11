@@ -94,6 +94,7 @@ export default {
       signInWithEmailAndPassword(auth, this.email, this.password)
         .then((userCredential) => {
           const user = userCredential.user;
+
           // Check if the user's email is verified
           if (user.emailVerified) {
             // If verified, proceed to profile page
@@ -106,10 +107,15 @@ export default {
           }
         })
         .catch((error) => {
-          this.errorMessage = error.message;
+          if (error.code === "auth/wrong-password") {
+            this.errorMessage = "Incorrect password. Please try again.";
+          } else if (error.code === "auth/user-not-found") {
+            this.errorMessage = "No account found with this email.";
+          } else {
+            this.errorMessage = error.message;
+          }
         });
     },
-
     // Reset password method
     resetPassword() {
       if (!this.resetEmail) {
@@ -146,17 +152,21 @@ export default {
 
           const db = getFirestore();
           const userDoc = doc(db, "users", user.uid);
+
+          // Initialize the user document with friends and friendRequests arrays
           await setDoc(userDoc, {
             displayName: this.username,
             email: user.email,
             biography: "",
             interests: "",
             isAdmin: false,
+            friends: [], // Initialize empty friends array
+            friendRequests: [], // Initialize empty friendRequests array
           });
 
           // Send email verification
           await sendEmailVerification(user);
-          await auth.signOut();
+          await auth.signOut(); // Log out after registration until email is verified
 
           // Redirect to the VerifyEmail page
           this.$router.push("/verify-email");
