@@ -129,10 +129,14 @@ export default {
       try {
         const db = getFirestore();
         const userDoc = doc(db, "users", auth.currentUser.uid);
-        await setDoc(userDoc, {
-          interests: this.interests,
-          biography: this.biography,
-        });
+        await setDoc(
+          userDoc,
+          {
+            interests: this.interests,
+            biography: this.biography,
+          },
+          { merge: true }
+        ); // Use { merge: true } to avoid overwriting other fields
 
         this.successMessage = "Profile updated successfully!";
       } catch (error) {
@@ -152,9 +156,22 @@ export default {
       }
 
       try {
+        // Update display name in Firebase Authentication
         await updateProfile(auth.currentUser, {
           displayName: this.newDisplayName,
         });
+
+        // Update display name in Firestore
+        const db = getFirestore();
+        const userDoc = doc(db, "users", auth.currentUser.uid);
+        await setDoc(
+          userDoc,
+          {
+            displayName: this.newDisplayName,
+          },
+          { merge: true }
+        ); // Use { merge: true } to avoid overwriting other fields
+
         this.displayName = this.newDisplayName;
         this.newDisplayName = "";
         this.successMessage = "Display name updated successfully!";
