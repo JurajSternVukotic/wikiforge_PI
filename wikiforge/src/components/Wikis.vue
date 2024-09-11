@@ -203,12 +203,26 @@ export default {
     openShareModal(wiki) {
       this.selectedWiki = wiki;
       this.showShareModal = true;
+
+      // Listen for changes in the wiki's permissions
+      this.trackWikiPermissions(wiki.id);
     },
     closeShareModal() {
       this.showShareModal = false;
       this.selectedFriend = "";
       this.selectedPermission = "viewer";
       this.selectedUserToRevoke = "";
+    },
+    // Track permissions for real-time updates
+    trackWikiPermissions(wikiId) {
+      const db = getFirestore();
+      const wikiDoc = doc(db, "wikis", wikiId);
+
+      onSnapshot(wikiDoc, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          this.selectedWiki.permissions = docSnapshot.data().permissions || {};
+        }
+      });
     },
     async grantPermission() {
       if (!this.selectedFriend) {
