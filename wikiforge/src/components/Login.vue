@@ -156,6 +156,7 @@ export default {
 
           // Send email verification
           await sendEmailVerification(user);
+          await auth.signOut();
 
           // Redirect to the VerifyEmail page
           this.$router.push("/verify-email");
