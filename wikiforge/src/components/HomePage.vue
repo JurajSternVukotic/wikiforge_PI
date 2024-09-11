@@ -64,6 +64,7 @@ import {
   updateDoc,
   doc,
   deleteDoc,
+  onSnapshot,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase"; // Import Firebase auth
@@ -109,14 +110,18 @@ export default {
       }
     },
 
-    // Load news from Firestore
-    async loadNews() {
+    // Real-time loading of news using onSnapshot
+    loadNews() {
       const db = getFirestore();
-      const querySnapshot = await getDocs(collection(db, "wikiforgeNews"));
-      this.newsList = querySnapshot.docs.map((doc) => ({
-        ...doc.data(),
-        id: doc.id,
-      }));
+      const newsCollection = collection(db, "wikiforgeNews");
+
+      // Listen for real-time updates
+      onSnapshot(newsCollection, (snapshot) => {
+        this.newsList = snapshot.docs.map((doc) => ({
+          ...doc.data(),
+          id: doc.id,
+        }));
+      });
     },
 
     // Add new news (admin only)
