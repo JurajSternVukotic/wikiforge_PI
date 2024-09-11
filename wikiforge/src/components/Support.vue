@@ -31,11 +31,18 @@
       <ul>
         <li v-for="question in unansweredQuestions" :key="question.id">
           <p>{{ question.question }}</p>
+
+          <!-- Answer textarea and submit button -->
           <textarea
             v-model="question.answer"
             placeholder="Answer this question"
           ></textarea>
           <button @click="answerQuestion(question)">Submit Answer</button>
+
+          <!-- Delete button -->
+          <button @click="deleteQuestion(question.id)" class="danger">
+            Delete Question
+          </button>
         </li>
       </ul>
     </div>
@@ -64,10 +71,15 @@ import {
   updateDoc,
   doc,
   onSnapshot,
+  deleteDoc,
 } from "firebase/firestore";
 import { auth } from "../firebase";
 
 export default {
+  mounted() {
+    this.checkUserStatus();
+  },
+
   name: "SupportPage",
   data() {
     return {
@@ -90,20 +102,37 @@ export default {
   },
   methods: {
     // Check if the current user is an admin
+    checkUserStatus() {
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          this.isUserLoggedIn = true;
+          this.checkIfAdmin();
+        } else {
+          this.isUserLoggedIn = false;
+        }
+      });
+    },
     async checkIfAdmin() {
       const user = auth.currentUser;
       if (user) {
         const db = getFirestore();
         const userDoc = doc(db, "users", user.uid);
         const userSnapshot = await getDoc(userDoc);
+
         if (userSnapshot.exists()) {
           this.isAdmin = userSnapshot.data().isAdmin || false;
+          console.log("Admin status:", this.isAdmin); // Debugging log to check admin status
+
+          // Load admin-specific data if the user is an admin
           if (this.isAdmin) {
-            this.loadUnansweredQuestions(); // Only load unanswered questions for admin
+            this.loadUnansweredQuestions();
           }
+        } else {
+          console.log("User document does not exist");
         }
       }
     },
+
     // Submit a new question
     async submitQuestion() {
       try {
@@ -123,15 +152,19 @@ export default {
         this.errorMessage = "Failed to submit your question. Please try again.";
       }
     },
-    checkUserStatus() {
-      onAuthStateChanged(auth, (user) => {
-        if (user) {
-          this.isUserLoggedIn = true;
-          // Optionally load user-specific data if necessary
-        } else {
-          this.isUserLoggedIn = false;
-        }
-      });
+    async deleteQuestion(questionId) {
+      try {
+        const db = getFirestore();
+        const questionDoc = doc(db, "supportQuestions", questionId);
+        await deleteDoc(questionDoc); // Delete the document from Firestore
+        this.successMessage = "Question deleted successfully!";
+
+        // Refresh unanswered questions after deletion
+        this.loadUnansweredQuestions();
+      } catch (error) {
+        console.log(error);
+        this.errorMessage = "Failed to delete the question.";
+      }
     },
 
     // Load unanswered questions for admin
@@ -229,5 +262,12 @@ button:hover {
 
 textarea {
   min-height: 100px;
+}
+button.danger {
+  background-color: red;
+}
+
+button.danger:hover {
+  background-color: darkred;
 }
 </style>
