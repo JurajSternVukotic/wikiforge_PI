@@ -61,6 +61,7 @@ import {
   signInWithPopup,
   updateProfile,
 } from "firebase/auth";
+import { getFirestore, doc, setDoc } from "firebase/firestore";
 
 export default {
   name: "LoginPage",
@@ -88,16 +89,27 @@ export default {
       this.resetMessage = "";
     },
 
-    // Login method
+    // Login method with email verification check
     loginWithEmail() {
       signInWithEmailAndPassword(auth, this.email, this.password)
-        .then(() => {
-          this.$router.push("/profile");
+        .then((userCredential) => {
+          const user = userCredential.user;
+          // Check if the user's email is verified
+          if (user.emailVerified) {
+            // If verified, proceed to profile page
+            this.$router.push("/profile");
+          } else {
+            // If not verified, log the user out and redirect to VerifyEmail page
+            this.errorMessage = "Please verify your email before logging in.";
+            auth.signOut(); // Log the user out
+            this.$router.push("/verify-email"); // Redirect to verify email page
+          }
         })
         .catch((error) => {
           this.errorMessage = error.message;
         });
     },
+
     // Reset password method
     resetPassword() {
       if (!this.resetEmail) {
@@ -130,6 +142,16 @@ export default {
           // Set the user's display name to the entered username
           await updateProfile(user, {
             displayName: this.username,
+          });
+
+          const db = getFirestore();
+          const userDoc = doc(db, "users", user.uid);
+          await setDoc(userDoc, {
+            displayName: this.username,
+            email: user.email,
+            biography: "",
+            interests: "",
+            isAdmin: false,
           });
 
           // Send email verification
