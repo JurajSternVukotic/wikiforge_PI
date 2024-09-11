@@ -1,6 +1,5 @@
 <template>
   <div class="wikis-container">
-    <!-- Banner -->
     <h1>Your Wikis</h1>
 
     <!-- If the user is not logged in, show the message -->
@@ -34,13 +33,78 @@
             <button @click="deleteWiki(wiki.id)" class="danger">
               Delete Wiki
             </button>
-            <button @click="shareWiki(wiki)">Share</button>
+            <button @click="openShareModal(wiki)">Share</button>
           </div>
         </div>
 
         <div v-else>
           <p>No wikis found. Start by creating a new one!</p>
         </div>
+      </div>
+    </div>
+
+    <!-- Share Wiki Modal -->
+    <div v-if="showShareModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3>Manage Permissions for: {{ selectedWiki.title }}</h3>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button
+            @click="activeTab = 'grant'"
+            :class="{ active: activeTab === 'grant' }"
+          >
+            Grant Permissions
+          </button>
+          <button
+            @click="activeTab = 'revoke'"
+            :class="{ active: activeTab === 'revoke' }"
+          >
+            Revoke Permissions
+          </button>
+        </div>
+
+        <!-- Grant Permissions -->
+        <div v-if="activeTab === 'grant'">
+          <label for="friendSelect">Select a Friend:</label>
+          <select v-model="selectedFriend" id="friendSelect">
+            <option
+              v-for="friend in friends"
+              :key="friend.uid"
+              :value="friend.uid"
+            >
+              {{ friend.displayName }}
+            </option>
+          </select>
+
+          <label for="permissionSelect">Select Permission:</label>
+          <select v-model="selectedPermission" id="permissionSelect">
+            <option value="viewer">Viewer</option>
+            <option value="commenter">Commenter</option>
+            <option value="editor">Editor</option>
+          </select>
+
+          <button @click="grantPermission">Grant Permission</button>
+        </div>
+
+        <!-- Revoke Permissions -->
+        <div v-if="activeTab === 'revoke'">
+          <label for="revokeSelect">Select User to Revoke:</label>
+          <select v-model="selectedUserToRevoke" id="revokeSelect">
+            <option
+              v-for="(permission, userId) in selectedWiki.permissions"
+              :key="userId"
+              :value="userId"
+            >
+              {{ getFriendDisplayName(userId) }} - {{ permission }}
+            </option>
+          </select>
+
+          <button @click="revokePermission">Revoke Permission</button>
+        </div>
+
+        <!-- Close Modal -->
+        <button @click="closeShareModal" class="close-btn">Close</button>
       </div>
     </div>
   </div>
@@ -55,52 +119,59 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  onSnapshot,
+  query,
+  where,
+  deleteField,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../firebase"; // Import Firebase auth
+import { auth } from "../firebase";
 
 export default {
   name: "WikisPage",
   data() {
     return {
-      newWikiTitle: "", // Title for new wikis
-      wikis: [], // List of user's wikis
-      isUserLoggedIn: false, // Track user login status
-      displayName: "Guest", // Display user's name, default to Guest
+      newWikiTitle: "",
+      wikis: [],
+      isUserLoggedIn: false,
+      displayName: "Guest",
+      showShareModal: false,
+      activeTab: "grant", // Tracks active tab (grant/revoke permissions)
+      friends: [], // User's friends list
+      selectedWiki: null, // Currently selected wiki for sharing
+      selectedFriend: "", // Selected friend to grant permission to
+      selectedPermission: "viewer", // Selected permission (default: viewer)
+      selectedUserToRevoke: "", // User to revoke permission from
     };
   },
   mounted() {
-    this.checkUserStatus(); // Check if the user is logged in
+    this.checkUserStatus();
   },
   methods: {
-    // Check if the user is logged in
     checkUserStatus() {
-      // Initial check if the user is already logged in
       const user = auth.currentUser;
       if (user) {
         this.isUserLoggedIn = true;
-        this.loadWikis(); // Load wikis if the user is logged in
-        this.displayName = user.displayName || "User"; // Set the user's display name if available
+        this.loadWikis();
+        this.loadFriends(); // Load friends for permission sharing
+        this.displayName = user.displayName || "User";
       }
 
-      // Listen for changes in the authentication state
       onAuthStateChanged(auth, (user) => {
         if (user) {
           this.isUserLoggedIn = true;
-          this.displayName = user.displayName || "User"; // Update display name
-          this.loadWikis(); // Load wikis if user is logged in
+          this.loadWikis();
+          this.loadFriends();
+          this.displayName = user.displayName || "User";
         } else {
           this.isUserLoggedIn = false;
           this.displayName = "Guest";
         }
       });
     },
-    // Load user's wikis from Firestore
     async loadWikis() {
       const db = getFirestore();
       const querySnapshot = await getDocs(collection(db, "wikis"));
-
-      // Filter wikis where the user is the owner
       this.wikis = querySnapshot.docs
         .map((doc) => ({
           ...doc.data(),
@@ -108,8 +179,79 @@ export default {
         }))
         .filter((wiki) => wiki.owner === auth.currentUser.uid);
     },
+    async loadFriends() {
+      const db = getFirestore();
+      const currentUser = auth.currentUser;
+      const userDoc = doc(db, "users", currentUser.uid);
+      onSnapshot(userDoc, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const userData = docSnapshot.data();
+          const friends = userData.friends || [];
+          const friendsQuery = query(
+            collection(db, "users"),
+            where("__name__", "in", friends)
+          );
+          getDocs(friendsQuery).then((snapshot) => {
+            this.friends = snapshot.docs.map((doc) => ({
+              uid: doc.id,
+              displayName: doc.data().displayName,
+            }));
+          });
+        }
+      });
+    },
+    openShareModal(wiki) {
+      this.selectedWiki = wiki;
+      this.showShareModal = true;
+    },
+    closeShareModal() {
+      this.showShareModal = false;
+      this.selectedFriend = "";
+      this.selectedPermission = "viewer";
+      this.selectedUserToRevoke = "";
+    },
+    async grantPermission() {
+      if (!this.selectedFriend) {
+        alert("Please select a friend.");
+        return;
+      }
 
-    // Create a new wiki
+      try {
+        const db = getFirestore();
+        const wikiDoc = doc(db, "wikis", this.selectedWiki.id);
+        await updateDoc(wikiDoc, {
+          [`permissions.${this.selectedFriend}`]: this.selectedPermission,
+        });
+
+        alert("Permission granted successfully!");
+        this.closeShareModal();
+      } catch (error) {
+        alert("Failed to grant permission.");
+      }
+    },
+    async revokePermission() {
+      if (!this.selectedUserToRevoke) {
+        alert("Please select a user to revoke.");
+        return;
+      }
+
+      try {
+        const db = getFirestore();
+        const wikiDoc = doc(db, "wikis", this.selectedWiki.id);
+        await updateDoc(wikiDoc, {
+          [`permissions.${this.selectedUserToRevoke}`]: deleteField(),
+        });
+
+        alert("Permission revoked successfully!");
+        this.closeShareModal();
+      } catch (error) {
+        alert("Failed to revoke permission.");
+      }
+    },
+    getFriendDisplayName(uid) {
+      const friend = this.friends.find((friend) => friend.uid === uid);
+      return friend ? friend.displayName : "Unknown User";
+    },
     async createWiki() {
       if (!this.newWikiTitle) {
         alert("Please enter a wiki title.");
@@ -120,21 +262,19 @@ export default {
         const db = getFirestore();
         await addDoc(collection(db, "wikis"), {
           title: this.newWikiTitle,
-          owner: auth.currentUser.uid, // Set the owner as the current user
+          owner: auth.currentUser.uid,
           permissions: {
-            [auth.currentUser.uid]: "owner", // Set the creator as the owner
+            [auth.currentUser.uid]: "owner",
           },
           createdAt: new Date(),
         });
 
-        this.newWikiTitle = ""; // Clear input after creating
-        this.loadWikis(); // Refresh the list of wikis
+        this.newWikiTitle = "";
+        this.loadWikis();
       } catch (error) {
         alert("Failed to create a new wiki. Please try again.");
       }
     },
-
-    // Edit wiki title
     async editWikiTitle(wiki) {
       const newTitle = prompt("Enter new title", wiki.title);
       if (newTitle && newTitle !== wiki.title) {
@@ -144,34 +284,22 @@ export default {
           await updateDoc(wikiDoc, {
             title: newTitle,
           });
-          this.loadWikis(); // Refresh the list after updating
+          this.loadWikis();
         } catch (error) {
           alert("Failed to update wiki title.");
         }
       }
     },
-
-    // Delete wiki (with confirmation)
     async deleteWiki(wikiId) {
-      if (
-        confirm(
-          "Are you sure you want to delete this wiki? This cannot be undone."
-        )
-      ) {
+      if (confirm("Are you sure you want to delete this wiki?")) {
         try {
           const db = getFirestore();
           await deleteDoc(doc(db, "wikis", wikiId));
-          this.loadWikis(); // Refresh the list after deletion
+          this.loadWikis();
         } catch (error) {
           alert("Failed to delete the wiki.");
         }
       }
-    },
-
-    // Share wiki (placeholder for now)
-    shareWiki(wiki) {
-      console.log(wiki);
-      alert("Sharing feature is coming soon!");
     },
   },
 };
@@ -224,5 +352,46 @@ button.danger {
 
 button.danger:hover {
   background-color: darkred;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 100%;
+}
+
+.close-btn {
+  background-color: #ccc;
+}
+
+.tabs {
+  display: flex;
+  justify-content: space-between;
+}
+
+.tabs button {
+  flex: 1;
+  padding: 10px;
+  cursor: pointer;
+  background-color: #f0f0f0;
+}
+
+.tabs button.active {
+  background-color: #333;
+  color: white;
 }
 </style>
