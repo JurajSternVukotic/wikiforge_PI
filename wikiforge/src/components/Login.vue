@@ -10,6 +10,7 @@
         <input v-model="email" type="email" placeholder="Email" />
         <input v-model="password" type="password" placeholder="Password" />
         <button @click="loginWithEmail">Login with Email</button>
+        <!-- Forgot Password link -->
       </div>
 
       <div v-else>
@@ -24,8 +25,21 @@
         <button @click="registerWithEmail">Register</button>
       </div>
 
-      <button @click="loginWithGoogle">Login with Google</button>
+      <!-- Reset password form (shown when forgot password is clicked) -->
+      <div v-if="isResetPassword">
+        <input
+          v-model="resetEmail"
+          type="email"
+          placeholder="Enter your email"
+        />
+        <button @click="resetPassword">Send Reset Password Email</button>
+        <p v-if="resetMessage" class="success">{{ resetMessage }}</p>
+      </div>
 
+      <button @click="loginWithGoogle">Login with Google</button>
+      <p @click="toggleResetPassword" class="forgot-password-link">
+        Forgot Password?
+      </p>
       <p>
         {{ isLogin ? "Need an account?" : "Already have an account?" }}
         <span @click="toggleAuthMode">{{
@@ -37,14 +51,15 @@
 </template>
 
 <script>
-// Import Firebase auth functions from your firebase.js
-import { auth } from "../firebase";
+import { auth } from "@/firebase";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
+  sendPasswordResetEmail,
   sendEmailVerification,
+  signInWithPopup,
+  updateProfile,
 } from "firebase/auth";
 
 export default {
@@ -55,8 +70,11 @@ export default {
       password: "",
       confirmPassword: "",
       username: "",
-      isLogin: true, // toggle between login and register
-      errorMessage: "", // to hold error message
+      isLogin: true,
+      isResetPassword: false,
+      errorMessage: "",
+      resetEmail: "",
+      resetMessage: "",
     };
   },
   methods: {
@@ -64,57 +82,78 @@ export default {
       this.isLogin = !this.isLogin;
       this.errorMessage = ""; // Clear error message when switching modes
     },
+    toggleResetPassword() {
+      this.isResetPassword = !this.isResetPassword;
+      this.errorMessage = "";
+      this.resetMessage = "";
+    },
+
+    // Login method
     loginWithEmail() {
-      this.errorMessage = ""; // Clear any previous error message
       signInWithEmailAndPassword(auth, this.email, this.password)
-        .then((userCredential) => {
-          const user = userCredential.user;
-          if (!user.emailVerified) {
-            this.errorMessage = "Please verify your email before logging in.";
-            return;
-          }
+        .then(() => {
           this.$router.push("/profile");
         })
         .catch((error) => {
-          this.errorMessage = error.message; // Set the error message
+          this.errorMessage = error.message;
         });
     },
-    registerWithEmail() {
-      if (this.password !== this.confirmPassword) {
-        alert("Passwords do not match!");
+    // Reset password method
+    resetPassword() {
+      if (!this.resetEmail) {
+        this.errorMessage = "Please enter your email.";
         return;
       }
-      this.errorMessage = ""; // Clear any previous error message
-      createUserWithEmailAndPassword(auth, this.email, this.password)
-        .then((userCredential) => {
-          const user = userCredential.user;
-          console.log(user);
-          sendEmailVerification(user)
-            .then(() => {
-              this.errorMessage =
-                "Verification email sent! Please check your inbox.";
-            })
-            .catch((verificationError) => {
-              console.log(verificationError);
-              this.errorMessage = "Failed to send verification email.";
-            });
 
-          this.$router.push("/profile");
+      sendPasswordResetEmail(auth, this.resetEmail)
+        .then(() => {
+          this.resetMessage =
+            "Password reset email sent. Please check your inbox.";
         })
         .catch((error) => {
-          this.errorMessage = error.message; // Set the error message
+          this.errorMessage = error.message;
+        });
+    },
+
+    // Register method: Set displayName to username and send verification email
+    registerWithEmail() {
+      if (this.password !== this.confirmPassword) {
+        this.errorMessage = "Passwords do not match!";
+        return;
+      }
+
+      // Register user and set the displayName to the username
+      createUserWithEmailAndPassword(auth, this.email, this.password)
+        .then(async (userCredential) => {
+          const user = userCredential.user;
+
+          // Set the user's display name to the entered username
+          await updateProfile(user, {
+            displayName: this.username,
+          });
+
+          // Send email verification
+          await sendEmailVerification(user);
+
+          // Redirect to the VerifyEmail page
+          this.$router.push("/verify-email");
+
+          // Optionally, show a message to the user
+          this.errorMessage =
+            "Verification email sent. Please check your inbox.";
+        })
+        .catch((error) => {
+          this.errorMessage = error.message;
         });
     },
     loginWithGoogle() {
-      this.errorMessage = ""; // Clear any previous error message
       const provider = new GoogleAuthProvider();
       signInWithPopup(auth, provider)
-        .then((result) => {
-          console.log(result);
+        .then(() => {
           this.$router.push("/profile");
         })
         .catch((error) => {
-          this.errorMessage = error.message; // Set the error message
+          this.errorMessage = error.message;
         });
     },
   },
@@ -172,5 +211,10 @@ span {
   color: red;
   font-size: 14px;
   margin-bottom: 15px;
+}
+.forgot-password-link {
+  color: blue;
+  cursor: pointer;
+  margin-top: 10px;
 }
 </style>
