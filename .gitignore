@@ -1,3 +1,4 @@
 .env
 .env.local
 node_modules/.vue-global-types/vue_3.3_false.d.ts
+wikiforge/package-lock.json

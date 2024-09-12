@@ -22,18 +22,23 @@
         <button @click="createWiki">Create Wiki</button>
       </div>
 
-      <!-- List of Wikis -->
       <div class="wiki-list">
         <h2>Your Wikis</h2>
 
         <div v-if="wikis.length > 0">
-          <div v-for="wiki in wikis" :key="wiki.id" class="wiki-card">
+          <div
+            v-for="wiki in wikis"
+            :key="wiki.id"
+            class="wiki-card"
+            @click="navigateToWiki(wiki.id)"
+          >
             <h3>{{ wiki.title }}</h3>
-            <button @click="editWikiTitle(wiki)">Edit Title</button>
-            <button @click="deleteWiki(wiki.id)" class="danger">
+            <button @click.stop="editWikiTitle(wiki)">Edit Title</button>
+            <!-- .stop prevents click from propagating -->
+            <button @click.stop="deleteWiki(wiki.id)" class="danger">
               Delete Wiki
             </button>
-            <button @click="openShareModal(wiki)">Share</button>
+            <button @click.stop="openShareModal(wiki)">Share</button>
           </div>
         </div>
 
@@ -149,6 +154,10 @@ export default {
     this.checkUserStatus();
   },
   methods: {
+    navigateToWiki(wikiId) {
+      this.$router.push({ name: "WikiPage", params: { id: wikiId } });
+    },
+
     checkUserStatus() {
       onAuthStateChanged(auth, (user) => {
         if (user) {

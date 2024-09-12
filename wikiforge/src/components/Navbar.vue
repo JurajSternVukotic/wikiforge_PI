@@ -17,11 +17,11 @@
           <font-awesome-icon :icon="['fas', 'users']" /> Social
         </router-link>
       </li>
-      <li class="menu-item">
+      <!-- <li class="menu-item">
         <router-link to="/bookmarks">
           <font-awesome-icon :icon="['fas', 'bookmark']" /> Bookmarks
         </router-link>
-      </li>
+      </li> -->
     </ul>
 
     <!-- Center Brand -->

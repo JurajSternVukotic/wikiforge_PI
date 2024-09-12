@@ -9,6 +9,7 @@ import SupportPage from "./components/Support.vue";
 import ProfilePage from "./components/Profile.vue";
 import LoginPage from "./components/Login.vue";
 import VerifyEmail from "./components/VerifyEmail.vue";
+import WikiPage from "./components/WikiPage.vue";
 
 const routes = [
   {
@@ -55,6 +56,12 @@ const routes = [
     path: "/verify-email",
     name: "VerifyEmail",
     component: VerifyEmail,
+  },
+  { path: "/wiki/:id", name: "WikiPage", component: WikiPage },
+  {
+    path: "/wiki/:wikiId/article/:id",
+    name: "ArticlePage",
+    component: () => import("./components/ArticlePage.vue"),
   },
 ];
 
