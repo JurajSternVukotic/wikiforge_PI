@@ -11,12 +11,6 @@
       >
         Wikiforge News
       </button>
-      <button
-        :class="{ active: activeTab === 'updates' }"
-        @click="activeTab = 'updates'"
-      >
-        Personal Updates
-      </button>
     </div>
 
     <!-- Wikiforge News Tab -->
@@ -45,12 +39,6 @@
         <button @click="addNews">Add News</button>
       </div>
     </div>
-
-    <!-- Personal Updates Tab (for later) -->
-    <div v-if="activeTab === 'updates'" class="updates-tab">
-      <h2>Personal Updates</h2>
-      <p>Your personal updates will appear here in the future.</p>
-    </div>
   </div>
 </template>
 
@@ -58,7 +46,6 @@
 import {
   getFirestore,
   collection,
-  getDocs,
   getDoc,
   addDoc,
   updateDoc,

@@ -1,54 +1,64 @@
 <template>
   <div class="social-container">
+    <!-- If the user is not logged in, show the message -->
+    <div v-if="!isUserLoggedIn">
+      <p>
+        Unfortunately, Wikiforge requires users to log in before managing
+        friends .
+      </p>
+    </div>
+
     <!-- Add Friends Section -->
-    <h2>Add Friends</h2>
-    <input
-      v-model="searchQuery"
-      placeholder="Search for friends by username"
-      @input="searchUsers"
-    />
-
-    <div v-if="searchResults.length > 0">
-      <div v-for="user in searchResults" :key="user.uid" class="user-card">
-        <p>{{ user.displayName }}</p>
-        <button @click="sendFriendRequest(user.uid)">+</button>
-      </div>
-    </div>
     <div v-else>
-      <p>No users found.</p>
-    </div>
+      <h2>Add Friends</h2>
+      <input
+        v-model="searchQuery"
+        placeholder="Search for friends by username"
+        @input="searchUsers"
+      />
 
-    <!-- Friend Requests Section -->
-    <h2>Incoming Friend Requests</h2>
-    <div v-if="friendRequests.length > 0">
-      <div
-        v-for="request in friendRequests"
-        :key="request.uid"
-        class="friend-request-card"
-      >
-        <p>{{ request.displayName }}</p>
-        <button @click="acceptFriendRequest(request.uid)">Accept</button>
-        <button @click="declineFriendRequest(request.uid)">Decline</button>
+      <div v-if="searchResults.length > 0">
+        <div v-for="user in searchResults" :key="user.uid" class="user-card">
+          <p>{{ user.displayName }}</p>
+          <button @click="sendFriendRequest(user.uid)">+</button>
+        </div>
       </div>
-    </div>
-    <div v-else>
-      <p>No incoming friend requests.</p>
-    </div>
+      <div v-else>
+        <p>No users found.</p>
+      </div>
 
-    <!-- Friends List Section -->
-    <h2>Your Friends</h2>
-    <div v-if="friends.length > 0">
-      <div v-for="friend in friends" :key="friend.uid" class="friend-card">
-        <p>{{ friend.displayName }}</p>
-        <button @click="chatWithFriend(friend.uid)">Chat</button>
-        <button @click="viewProfile(friend.uid)">View Profile</button>
-        <button @click="removeFriend(friend.uid)" class="danger">
-          Delete Friend
-        </button>
+      <!-- Friend Requests Section -->
+      <h2>Incoming Friend Requests</h2>
+      <div v-if="friendRequests.length > 0">
+        <div
+          v-for="request in friendRequests"
+          :key="request.uid"
+          class="friend-request-card"
+        >
+          <p>{{ request.displayName }}</p>
+          <button @click="acceptFriendRequest(request.uid)">Accept</button>
+          <button @click="declineFriendRequest(request.uid)">Decline</button>
+        </div>
       </div>
-    </div>
-    <div v-else>
-      <p>You have no friends yet.</p>
+      <div v-else>
+        <p>No incoming friend requests.</p>
+      </div>
+
+      <!-- Friends List Section -->
+      <h2>Your Friends</h2>
+      <div v-if="friends.length > 0">
+        <div v-for="friend in friends" :key="friend.uid" class="friend-card">
+          <p>{{ friend.displayName }}</p>
+          <button @click="chatWithFriend(friend.uid)">Chat</button>
+          <button @click="viewProfile(friend.uid)">View Profile</button>
+          <button @click="removeFriend(friend.uid)" class="danger">
+            Delete Friend
+          </button>
+        </div>
+      </div>
+      <div v-else>
+        <p>You have no friends yet.</p>
+      </div>
     </div>
   </div>
 </template>
@@ -77,6 +87,7 @@ export default {
       searchResults: [], // List of users matching the search query
       friends: [], // List of current friends
       friendRequests: [], // List of incoming friend requests
+      isUserLoggedIn: false,
     };
   },
   mounted() {
@@ -91,8 +102,19 @@ export default {
         this.errorMessage = "Please log in to view your social data.";
       }
     });
+    this.checkUserStatus();
   },
   methods: {
+    checkUserStatus() {
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          this.isUserLoggedIn = true;
+        } else {
+          this.isUserLoggedIn = false;
+        }
+      });
+    },
+
     // Search users by display name
     async searchUsers() {
       if (this.searchQuery.length === 0) {

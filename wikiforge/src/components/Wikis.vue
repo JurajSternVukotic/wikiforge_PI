@@ -116,6 +116,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   deleteDoc,
   doc,
   updateDoc,
@@ -149,20 +150,12 @@ export default {
   },
   methods: {
     checkUserStatus() {
-      const user = auth.currentUser;
-      if (user) {
-        this.isUserLoggedIn = true;
-        this.loadWikis();
-        this.loadFriends(); // Load friends for permission sharing
-        this.displayName = user.displayName || "User";
-      }
-
       onAuthStateChanged(auth, (user) => {
         if (user) {
           this.isUserLoggedIn = true;
-          this.loadWikis();
-          this.loadFriends();
           this.displayName = user.displayName || "User";
+          this.loadWikis(); // Only load wikis after user is authenticated
+          this.loadFriends(); // Load friends for permission sharing
         } else {
           this.isUserLoggedIn = false;
           this.displayName = "Guest";
@@ -171,32 +164,75 @@ export default {
     },
     async loadWikis() {
       const db = getFirestore();
-      const querySnapshot = await getDocs(collection(db, "wikis"));
-      this.wikis = querySnapshot.docs
-        .map((doc) => ({
+      const currentUserUid = auth.currentUser.uid;
+
+      // Fetch owned wikis
+      const ownedWikisQuery = query(
+        collection(db, "wikis"),
+        where("owner", "==", currentUserUid)
+      );
+
+      // Fetch shared wikis
+      const sharedWikisQuery = query(
+        collection(db, "wikis"),
+        where(`permissions.${currentUserUid}`, "!=", null)
+      );
+
+      const [ownedWikisSnapshot, sharedWikisSnapshot] = await Promise.all([
+        getDocs(ownedWikisQuery),
+        getDocs(sharedWikisQuery),
+      ]);
+
+      // Store unique wikis in a Map to avoid duplicates
+      const wikiMap = new Map();
+
+      // Add owned wikis to the Map
+      ownedWikisSnapshot.docs.forEach((doc) => {
+        wikiMap.set(doc.id, {
           ...doc.data(),
           id: doc.id,
-        }))
-        .filter((wiki) => wiki.owner === auth.currentUser.uid);
+        });
+      });
+
+      // Add shared wikis to the Map (will overwrite owned wikis if they are the same)
+      sharedWikisSnapshot.docs.forEach((doc) => {
+        if (!wikiMap.has(doc.id)) {
+          wikiMap.set(doc.id, {
+            ...doc.data(),
+            id: doc.id,
+          });
+        }
+      });
+
+      // Convert the map back to an array to display in the UI
+      this.wikis = Array.from(wikiMap.values());
     },
     async loadFriends() {
       const db = getFirestore();
       const currentUser = auth.currentUser;
       const userDoc = doc(db, "users", currentUser.uid);
+
       onSnapshot(userDoc, (docSnapshot) => {
         if (docSnapshot.exists()) {
           const userData = docSnapshot.data();
           const friends = userData.friends || [];
-          const friendsQuery = query(
-            collection(db, "users"),
-            where("__name__", "in", friends)
-          );
-          getDocs(friendsQuery).then((snapshot) => {
-            this.friends = snapshot.docs.map((doc) => ({
-              uid: doc.id,
-              displayName: doc.data().displayName,
-            }));
-          });
+
+          // Ensure the array is non-empty before making the query
+          if (friends.length > 0) {
+            const friendsQuery = query(
+              collection(db, "users"),
+              where("__name__", "in", friends)
+            );
+
+            getDocs(friendsQuery).then((snapshot) => {
+              this.friends = snapshot.docs.map((doc) => ({
+                uid: doc.id,
+                displayName: doc.data().displayName,
+              }));
+            });
+          } else {
+            this.friends = []; // No friends to show if array is empty
+          }
         }
       });
     },
@@ -308,10 +344,20 @@ export default {
       if (confirm("Are you sure you want to delete this wiki?")) {
         try {
           const db = getFirestore();
-          await deleteDoc(doc(db, "wikis", wikiId));
-          this.loadWikis();
+          const wikiDocRef = doc(db, "wikis", wikiId);
+
+          // Check if the document exists before trying to delete it
+          const wikiSnapshot = await getDoc(wikiDocRef);
+          if (!wikiSnapshot.exists()) {
+            throw new Error("Wiki does not exist.");
+          }
+
+          // Proceed with deletion
+          await deleteDoc(wikiDocRef);
+          this.loadWikis(); // Refresh the list of wikis after deletion
         } catch (error) {
-          alert("Failed to delete the wiki.");
+          console.error("Error deleting wiki:", error);
+          alert("Failed to delete the wiki: " + error.message);
         }
       }
     },

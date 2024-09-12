@@ -61,7 +61,7 @@ import {
   signInWithPopup,
   updateProfile,
 } from "firebase/auth";
-import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
 
 export default {
   name: "LoginPage",
@@ -95,24 +95,33 @@ export default {
         .then((userCredential) => {
           const user = userCredential.user;
 
-          // Check if the user's email is verified
-          if (user.emailVerified) {
-            // If verified, proceed to profile page
-            this.$router.push("/profile");
-          } else {
-            // If not verified, log the user out and redirect to VerifyEmail page
+          if (!user.emailVerified) {
             this.errorMessage = "Please verify your email before logging in.";
-            auth.signOut(); // Log the user out
-            this.$router.push("/verify-email"); // Redirect to verify email page
+
+            // Log the user out immediately
+            return auth
+              .signOut()
+              .then(() => {
+                this.$router.push("/verify-email");
+              })
+              .catch((signOutError) => {
+                // Handle any sign-out errors
+                console.error("Sign out failed:", signOutError);
+              });
           }
+
+          // If email is verified, continue with Firestore or redirect to profile page
+          this.$router.push("/profile");
         })
         .catch((error) => {
+          console.error("Login failed:", error);
+
           if (error.code === "auth/wrong-password") {
             this.errorMessage = "Incorrect password. Please try again.";
           } else if (error.code === "auth/user-not-found") {
             this.errorMessage = "No account found with this email.";
           } else {
-            this.errorMessage = error.message;
+            this.errorMessage = "Login failed. Please try again.";
           }
         });
     },
@@ -179,15 +188,33 @@ export default {
           this.errorMessage = error.message;
         });
     },
-    loginWithGoogle() {
+    async loginWithGoogle() {
       const provider = new GoogleAuthProvider();
-      signInWithPopup(auth, provider)
-        .then(() => {
-          this.$router.push("/profile");
-        })
-        .catch((error) => {
-          this.errorMessage = error.message;
-        });
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        // Check if the Firestore user document exists
+        const db = getFirestore();
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        // If user document does not exist, create it
+        if (!userDoc.exists()) {
+          await setDoc(userDocRef, {
+            displayName: user.displayName || "Anonymous", // Use displayName from Google or fallback to 'Anonymous'
+            email: user.email,
+            friends: [],
+            friendRequests: [],
+          });
+        }
+
+        // Redirect or proceed with further actions after login
+        this.$router.push("/profile");
+      } catch (error) {
+        console.error("Error logging in with Google:", error);
+        this.errorMessage = "Login failed. Please try again.";
+      }
     },
   },
 };
