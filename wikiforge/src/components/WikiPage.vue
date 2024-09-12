@@ -8,7 +8,12 @@
     </button>
 
     <h2>Articles</h2>
-    <button @click="createArticle" class="create-article-btn">
+    <!-- Create Article Button (Only visible to editors and owners) -->
+    <button
+      v-if="userPermission === 'editor' || userPermission === 'owner'"
+      @click="createArticle"
+      class="create-article-btn"
+    >
       Create Article
     </button>
 
@@ -33,8 +38,15 @@
     <!-- Comments Section -->
     <h2>Comments</h2>
 
-    <!-- Comment Form -->
-    <div class="comment-form">
+    <!-- Comment Form (Only visible to commenters, editors, and owners) -->
+    <div
+      class="comment-form"
+      v-if="
+        userPermission === 'commenter' ||
+        userPermission === 'editor' ||
+        userPermission === 'owner'
+      "
+    >
       <textarea
         v-model="newComment"
         placeholder="Write your comment..."
@@ -93,6 +105,9 @@ export default {
     if (wikiSnapshot.exists()) {
       this.wiki = wikiSnapshot.data();
     }
+    // Get current user's permission from the wiki's permissions
+    const currentUser = auth.currentUser;
+    this.userPermission = this.wiki.permissions[currentUser.uid] || "viewer";
 
     // Load articles related to this wiki
     const articlesQuery = query(

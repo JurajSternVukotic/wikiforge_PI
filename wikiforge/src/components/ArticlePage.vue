@@ -12,14 +12,15 @@
     <button @click="goBackToWiki" class="back-btn">Back to Wiki</button>
 
     <!-- Mode toggle: Edit or Render -->
-    <div class="mode-toggle">
-      <button @click="toggleMode">
-        {{ isEditing ? "Render" : "Edit" }}
-      </button>
+    <div v-if="isEditor">
+      <div class="mode-toggle">
+        <button @click="toggleMode">
+          {{ isEditing ? "Render" : "Edit" }}
+        </button>
+      </div>
     </div>
-
-    <!-- Editing mode -->
-    <div v-if="isEditing">
+    <!-- Edit/Delete mode available only for editors -->
+    <div v-if="isEditor && isEditing">
       <textarea
         v-model="article.content"
         placeholder="Start writing..."
@@ -32,7 +33,7 @@
       </button>
     </div>
 
-    <!-- Rendered mode -->
+    <!-- Rendered mode (view only for viewers and commenters) -->
     <div v-else class="article-content" v-html="renderedContent"></div>
   </div>
 </template>
@@ -77,14 +78,16 @@ export default {
       if (articleSnapshot.exists()) {
         this.article = articleSnapshot.data();
 
-        // Check if the user is an editor of the parent wiki
+        // Check if the user is an editor or commenter of the parent wiki
         const currentUser = auth.currentUser;
         const wikiDoc = doc(db, "wikis", this.article.wikiId);
         const wikiSnapshot = await getDoc(wikiDoc);
         const permissions = wikiSnapshot.data().permissions || {};
+
+        const userPermission = permissions[currentUser.uid];
         this.isEditor =
-          permissions[currentUser.uid] === "owner" ||
-          permissions[currentUser.uid] === "editor";
+          userPermission === "owner" || userPermission === "editor";
+        this.canComment = userPermission === "commenter" || this.isEditor; // Commenters and editors can comment
       }
     },
 
