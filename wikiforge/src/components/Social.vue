@@ -106,6 +106,30 @@
         <button @click="closeChat" class="close-btn">Close</button>
       </div>
     </div>
+    <!-- Profile Modal -->
+    <div v-if="showProfileModal" class="modal-overlay">
+      <div class="modal-content">
+        <h2>{{ selectedProfile.displayName }}'s Profile</h2>
+        <p><strong>Biography:</strong> {{ selectedProfile.bio }}</p>
+        <p><strong>Interests:</strong> {{ selectedProfile.interests }}</p>
+
+        <h3>Wikis</h3>
+        <div v-if="profileWikis.length > 0">
+          <ul>
+            <li v-for="wiki in profileWikis" :key="wiki.id">
+              <router-link :to="{ name: 'WikiPage', params: { id: wiki.id } }">
+                {{ wiki.title }} - {{ wiki.role }}
+              </router-link>
+            </li>
+          </ul>
+        </div>
+        <div v-else>
+          <p>This user is not involved in any wikis.</p>
+        </div>
+
+        <button @click="closeProfileModal" class="close-btn">Close</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -142,6 +166,9 @@ export default {
       newMessage: "", // The new message you're typing
       popupMessage: null, // Store the popup message and status
       isPopupVisible: false, // Control popup visibility
+      showProfileModal: false, // Control profile modal visibility
+      selectedProfile: null, // Store selected user's profile data
+      profileWikis: [], // Wikis associated with the selected profile
     };
   },
   mounted() {
@@ -489,9 +516,64 @@ export default {
       }
     },
     // Placeholder functions for chat and view profile
-    viewProfile(uid) {
-      console.log(uid);
-      alert("View profile feature coming soon!");
+    async viewProfile(uid) {
+      const db = getFirestore();
+      const userDoc = doc(db, "users", uid);
+      const userSnapshot = await getDoc(userDoc);
+
+      if (userSnapshot.exists()) {
+        this.selectedProfile = userSnapshot.data();
+        this.selectedProfile.displayName =
+          userSnapshot.data().displayName || "Unknown";
+        this.selectedProfile.bio =
+          userSnapshot.data().bio || "No biography provided";
+        this.selectedProfile.interests =
+          userSnapshot.data().interests || "No interests provided";
+
+        await this.loadProfileWikis(uid); // Load wikis the user is involved in
+
+        this.showProfileModal = true; // Show the modal
+      } else {
+        this.showPopup("Error", "User profile not found.");
+      }
+    },
+
+    async loadProfileWikis(uid) {
+      const db = getFirestore();
+      const currentUser = auth.currentUser.uid;
+
+      // Query for wikis owned by the selected user
+      const ownedWikisQuery = query(
+        collection(db, "wikis"),
+        where("owner", "==", uid) // Wikis owned by the friend (selected user)
+      );
+
+      // Fetch the wikis owned by the selected user
+      const ownedWikisSnapshot = await getDocs(ownedWikisQuery);
+
+      this.profileWikis = [];
+
+      // Filter and add wikis where the current user has permissions
+      ownedWikisSnapshot.forEach((doc) => {
+        const wikiData = doc.data();
+
+        // Check if the current user has permissions in this wiki
+        const currentUserRole = wikiData.permissions[currentUser];
+        if (currentUserRole) {
+          // Add the wiki to the list, showing the current user's role (not the friend's role)
+          this.profileWikis.push({
+            id: doc.id,
+            title: wikiData.title,
+            role: currentUserRole, // Show the current user's permissions in the wiki
+          });
+        }
+      });
+    },
+
+    closeProfileModal() {
+      this.showProfileModal = false;
+      this.selectedProfile = null;
+      this.profileWikis = [];
     },
   },
 };
@@ -599,5 +681,35 @@ button.close-btn {
 
 .popup.error {
   background-color: #dc3545;
+}
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.close-btn {
+  background-color: #ccc;
+  padding: 10px;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  margin-top: 20px;
 }
 </style>
