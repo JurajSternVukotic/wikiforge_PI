@@ -48,8 +48,13 @@
       <div v-if="friends.length > 0">
         <div v-for="friend in friends" :key="friend.uid" class="friend-card">
           <p>{{ friend.displayName }}</p>
+
+          <!-- Show the "Promote to Admin" button only if the friend is not an admin -->
+          <button v-if="!friend.isAdmin" @click="promoteToAdmin(friend.uid)">
+            Promote to Admin
+          </button>
+
           <button @click="chatWithFriend(friend)">Chat</button>
-          <!-- Pass friend object -->
           <button @click="viewProfile(friend.uid)">View Profile</button>
           <button @click="removeFriend(friend.uid)" class="danger">
             Delete Friend
@@ -58,6 +63,14 @@
       </div>
       <div v-else>
         <p>You have no friends yet.</p>
+      </div>
+      <!-- Popup for showing success or error messages -->
+      <div
+        v-if="isPopupVisible"
+        class="popup"
+        :class="popupMessage.status.toLowerCase()"
+      >
+        <p>{{ popupMessage.message }}</p>
       </div>
     </div>
     <!-- Chat Modal -->
@@ -127,6 +140,8 @@ export default {
       chatFriend: null, // The friend you're chatting with
       chatMessages: [], // Message history
       newMessage: "", // The new message you're typing
+      popupMessage: null, // Store the popup message and status
+      isPopupVisible: false, // Control popup visibility
     };
   },
   mounted() {
@@ -144,6 +159,15 @@ export default {
     this.checkUserStatus();
   },
   methods: {
+    showPopup(status, message) {
+      this.popupMessage = { status, message };
+      this.isPopupVisible = true;
+
+      // Automatically hide the popup after 3 seconds
+      setTimeout(() => {
+        this.isPopupVisible = false;
+      }, 3000);
+    },
     async chatWithFriend(friend) {
       this.chatFriend = friend;
       this.showChatModal = true;
@@ -378,6 +402,7 @@ export default {
     },
 
     // Load list of current friends
+    // Load list of current friends and listen for real-time updates
     async loadFriends() {
       try {
         const db = getFirestore();
@@ -402,11 +427,15 @@ export default {
                 collection(db, "users"),
                 where("__name__", "in", friends)
               );
-              const querySnapshot = await getDocs(q);
-              this.friends = querySnapshot.docs.map((doc) => ({
-                uid: doc.id,
-                displayName: doc.data().displayName,
-              }));
+
+              // Listen for real-time updates to friends' data
+              onSnapshot(q, (querySnapshot) => {
+                this.friends = querySnapshot.docs.map((doc) => ({
+                  uid: doc.id,
+                  displayName: doc.data().displayName,
+                  isAdmin: doc.data().isAdmin || false, // Add isAdmin field
+                }));
+              });
             } else {
               this.friends = []; // No friends found
             }
@@ -417,6 +446,22 @@ export default {
         console.error("Error loading friends:", error);
       }
     },
+    // Promote friend to admin
+    async promoteToAdmin(friendUid) {
+      const db = getFirestore();
+      const friendUserDoc = doc(db, "users", friendUid);
+
+      try {
+        await updateDoc(friendUserDoc, {
+          isAdmin: true, // Set isAdmin to true
+        });
+        this.showPopup("Success", "Friend has been promoted to admin.");
+      } catch (error) {
+        console.error("Error promoting friend to admin:", error);
+        this.showPopup("Error", "Failed to promote friend to admin.");
+      }
+    },
+
     // Remove a friend
     async removeFriend(friendUid) {
       const db = getFirestore();
@@ -536,5 +581,23 @@ button.danger:hover {
 
 button.close-btn {
   background-color: #ccc;
+}
+.popup {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 10px 20px;
+  border-radius: 5px;
+  color: white;
+  font-weight: bold;
+  z-index: 1000;
+}
+
+.popup.success {
+  background-color: #28a745;
+}
+
+.popup.error {
+  background-color: #dc3545;
 }
 </style>
