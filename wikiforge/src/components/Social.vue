@@ -44,12 +44,12 @@
         <p>No incoming friend requests.</p>
       </div>
 
-      <!-- Friends List Section -->
       <h2>Your Friends</h2>
       <div v-if="friends.length > 0">
         <div v-for="friend in friends" :key="friend.uid" class="friend-card">
           <p>{{ friend.displayName }}</p>
-          <button @click="chatWithFriend(friend.uid)">Chat</button>
+          <button @click="chatWithFriend(friend)">Chat</button>
+          <!-- Pass friend object -->
           <button @click="viewProfile(friend.uid)">View Profile</button>
           <button @click="removeFriend(friend.uid)" class="danger">
             Delete Friend
@@ -58,6 +58,39 @@
       </div>
       <div v-else>
         <p>You have no friends yet.</p>
+      </div>
+    </div>
+    <!-- Chat Modal -->
+    <div v-if="showChatModal" class="modal-overlay">
+      <div class="modal-content">
+        <h2>Chat with {{ chatFriend.displayName }}</h2>
+
+        <!-- Message history -->
+        <div class="message-history">
+          <div
+            v-for="message in chatMessages"
+            :key="message.id"
+            class="message"
+          >
+            <p>
+              <strong>{{ message.senderName }}:</strong> {{ message.text }}
+            </p>
+          </div>
+        </div>
+
+        <!-- New message input -->
+        <div class="message-input">
+          <input
+            v-model="newMessage"
+            type="text"
+            placeholder="Type your message..."
+            @keyup.enter="sendMessage"
+          />
+          <button @click="sendMessage">Send</button>
+        </div>
+
+        <!-- Close button -->
+        <button @click="closeChat" class="close-btn">Close</button>
       </div>
     </div>
   </div>
@@ -75,7 +108,10 @@ import {
   updateDoc,
   arrayUnion,
   arrayRemove,
+  addDoc,
+  orderBy,
   onSnapshot,
+  serverTimestamp,
 } from "firebase/firestore";
 import { auth, onAuthStateChanged } from "../firebase"; // Import Firebase auth
 
@@ -88,6 +124,10 @@ export default {
       friends: [], // List of current friends
       friendRequests: [], // List of incoming friend requests
       isUserLoggedIn: false,
+      showChatModal: false,
+      chatFriend: null, // The friend you're chatting with
+      chatMessages: [], // Message history
+      newMessage: "", // The new message you're typing
     };
   },
   mounted() {
@@ -105,6 +145,97 @@ export default {
     this.checkUserStatus();
   },
   methods: {
+    async chatWithFriend(friend) {
+      this.chatFriend = friend;
+      this.showChatModal = true;
+
+      const db = getFirestore();
+      const currentUser = auth.currentUser;
+
+      // Check if a chat already exists between the current user and the friend
+      const chatsRef = collection(db, "chats");
+      const chatQuery = query(
+        chatsRef,
+        where("participants", "array-contains", currentUser.uid)
+      );
+
+      const chatSnapshot = await getDocs(chatQuery);
+      let chatId = null;
+
+      chatSnapshot.forEach((doc) => {
+        const chatData = doc.data();
+        if (chatData.participants.includes(friend.uid)) {
+          chatId = doc.id; // Chat exists, get its ID
+        }
+      });
+
+      if (!chatId) {
+        // Create a new chat document if one doesn't exist
+        const newChatDoc = await addDoc(chatsRef, {
+          participants: [currentUser.uid, friend.uid],
+          messages: [], // Empty messages array for the new chat
+        });
+        chatId = newChatDoc.id;
+      }
+
+      this.currentChatId = chatId; // Set the current chat ID for sending messages
+      this.listenForMessages(chatId); // Listen for message updates
+    },
+
+    listenForMessages(chatId) {
+      const db = getFirestore();
+      const chatDoc = doc(db, "chats", chatId);
+
+      onSnapshot(chatDoc, (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const chatData = docSnapshot.data();
+          this.chatMessages = chatData.messages || [];
+        }
+      });
+    },
+
+    // Send a message
+    async sendMessage() {
+      if (!this.newMessage.trim()) return; // Don't send empty messages
+
+      const db = getFirestore();
+      const currentUser = auth.currentUser;
+
+      if (!this.currentChatId) {
+        console.error("Chat ID is not defined");
+        return;
+      }
+
+      const chatDoc = doc(db, "chats", this.currentChatId);
+
+      try {
+        // Add the new message to the chat messages array (without the timestamp)
+        await updateDoc(chatDoc, {
+          messages: arrayUnion({
+            senderId: currentUser.uid,
+            senderName: currentUser.displayName || "User",
+            text: this.newMessage,
+            createdAt: new Date(), // Temporarily use local timestamp
+          }),
+        });
+
+        // Then, update the document with server timestamp for the message
+        await updateDoc(chatDoc, {
+          lastMessageTimestamp: serverTimestamp(), // Can be used to track the latest message in the chat
+        });
+
+        this.newMessage = ""; // Clear input after sending
+      } catch (error) {
+        console.error("Error sending message:", error);
+      }
+    },
+    // Close the chat modal
+    closeChat() {
+      this.showChatModal = false;
+      this.chatFriend = null;
+      this.chatMessages = [];
+    },
+
     checkUserStatus() {
       onAuthStateChanged(auth, (user) => {
         if (user) {
@@ -314,10 +445,6 @@ export default {
       }
     },
     // Placeholder functions for chat and view profile
-    chatWithFriend(uid) {
-      console.log(uid);
-      alert("Chat feature coming soon!");
-    },
     viewProfile(uid) {
       console.log(uid);
       alert("View profile feature coming soon!");
@@ -364,5 +491,51 @@ button.danger {
 
 button.danger:hover {
   background-color: darkred;
+}
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.message-history {
+  flex: 1;
+  overflow-y: scroll;
+  margin-bottom: 10px;
+}
+
+.message {
+  margin-bottom: 10px;
+}
+
+.message-input {
+  display: flex;
+  justify-content: space-between;
+}
+
+.message-input input {
+  flex: 1;
+  padding: 10px;
+  margin-right: 10px;
+}
+
+button.close-btn {
+  background-color: #ccc;
 }
 </style>
