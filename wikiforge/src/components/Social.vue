@@ -110,7 +110,7 @@
     <div v-if="showProfileModal" class="modal-overlay">
       <div class="modal-content">
         <h2>{{ selectedProfile.displayName }}'s Profile</h2>
-        <p><strong>Biography:</strong> {{ selectedProfile.bio }}</p>
+        <p><strong>Biography:</strong> {{ selectedProfile.biography }}</p>
         <p><strong>Interests:</strong> {{ selectedProfile.interests }}</p>
 
         <h3>Wikis</h3>
