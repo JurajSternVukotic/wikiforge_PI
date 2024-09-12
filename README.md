@@ -2,6 +2,13 @@
 
 ---
 
+- Autori: Juraj Štern-Vukotić (0303106940)
+- [Fakultet informatike u Puli](https://fipu.unipu.hr/)
+- [Kolegij: Programsko inženjerstvo](ntankovic.unipu.hr/pi)
+- [Mentor: doc. dr. sc. Nikola Tanković](ntankovic.unipu.hr)
+
+---
+
 ## About
 
 The purpose of WikiForge is to let users create their own custom wikis, be it for internal documentation, business purposes, worldbuilding, or just personal knowledge bases.
