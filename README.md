@@ -32,6 +32,13 @@ Viewer može samo čitati članke, Commenter može čitati i pisati komentare, a
 
 ---
 
+## Upute
+
+- Potrebno u .env varijablu staviti konfiguraciju vašeg firebasea
+- Potrebno je samo `npm run serve` te ići na localhost koji vam javi
+
+---
+
 ## Rules za firestore ukoliko želite klonirati projekt
 
 ```
